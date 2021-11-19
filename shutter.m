@@ -5,9 +5,10 @@ classdef shutter < handle
     % Instructions:
     % Download the Kinesis DLLs from the Thorlabs website from:
     % https://www.thorlabs.com/software_pages/ViewSoftwarePage.cfm?Code=Motion_Control
+    % Make sure to use x64 version of the Kinesis if you have x64 Matlab
     % Edit KINESISPATHDEFAULT below to point to the location of the DLLs
     % Connect your KSC101 solenoid controller to the PC USB port and switch it on
-    % Check in the Thorlabs Kinesis software that the shutter is operational
+    % Check with the Thorlabs Kinesis software that the shutter is operational
     %
     % Example:
     % shlist = shutter.listdevices  % List connected devices
