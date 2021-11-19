@@ -13,14 +13,27 @@ classdef motor < handle
     %
     % Example for K10CR1 rotational stage:
     % mlist=motor.listdevices % List connected devices
-    
     % mot=motor               % Create a motor object  
     % mot.connect(mlist{1})   % Connect the first devce in the list of devices
     % mot.home()              % Home the device
     % mot.moveto(45)          % Move the device to the 45 degree setting
     % mot.moverel_deviceunit(-100000) % Move 100000 'clicks' backwards
     % mot.disconnect          % Disconnect device
-    % clear mot               % Clears device object from memory
+    % clear mot               % Clear device object from memory
+    %
+    % Example for BBD302 controller with MLS203 translational stage
+    % motXY = motor;          % create a motor object
+    % motXY.connect('103205624') % connect to a controller with a serial number 103205624
+    % motXY.enable            % enable all channels
+    % motXY.ishomed           % check if channels are homed
+    % motXY.home              % perform homing for all channels
+    % motXY.position          % get the current position for all channels
+    % motXY.moveto([15,25])   % move to position 15 mm on Ch1 and 25 mm on Ch2
+    % motXY.maxvelocity = [10,50];   % set maxvelocity for movement to 10 mm/s for Ch1 and 50 mm/s for Ch2
+    % motXY.acceleration = [500,500];% set acceleration to 500 mm/s2 for both channels
+    % motXY.moveto([55,37.5]) % move to position [55 mm, 37.5], which is the center
+    % motXY.disconnect        % disconnect the device
+    % clear motXY             % Clear device object from memory
     %
     % Author: Andriy Chmyrov 
     % Helmholtz Zentrum Muenchen, Deutschland
