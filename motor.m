@@ -13,6 +13,7 @@ classdef motor < handle
     %
     % Example for K10CR1 rotational stage:
     % mlist=motor.listdevices % List connected devices
+    
     % mot=motor               % Create a motor object  
     % mot.connect(mlist{1})   % Connect the first devce in the list of devices
     % mot.home()              % Home the device
@@ -91,6 +92,10 @@ classdef motor < handle
 
     methods
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% M E T H O D S - CONSTRUCTOR/DESCTRUCTOR
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
         % =================================================================
         function h = motor() % Constructor - Instantiate motor object
             motor.loaddlls; % Load DLLs (if not already loaded)
@@ -105,6 +110,172 @@ classdef motor < handle
                 end
             end
         end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% M E T H O D S - DEPENDENT, REQUIRE SET/GET
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+        % =================================================================
+        function set.acceleration(h, val)
+            switch(h.prefix)
+                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
+                    % check physical limits
+                    if val > h.acclimit
+                        error('Requested acceleration is higher than the physical limit, which is %.2f',h.acclimit);
+                    end
+                    velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
+                    velpars.Acceleration = val;
+                    h.deviceNET.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
+                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                    for km = 1:double(h.deviceInfoNET.NumChannels)
+                        % check physical limits
+                        if val(km) > h.acclimit(km)
+                            error('Requested acceleration is higher than the physical limit for Ch%d, which is %.2f',km,h.acclimit(km));
+                        end
+                        velpars = h.channel{km}.GetVelocityParams(); % Get existing velocity and acceleration parameters
+                        velpars.Acceleration = val(km);
+                        h.channel{km}.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
+                    end
+            end
+        end
+
+        % =================================================================
+        function val = get.acceleration(h)
+            switch(h.prefix)
+                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
+                    velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
+                    val = System.Decimal.ToDouble(velpars.Acceleration);
+                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                    for km = 1:double(h.deviceInfoNET.NumChannels)
+                        velocityparams{km} = h.channel{km}.GetVelocityParams();             %#ok<AGROW> % update velocity parameter
+                        val(km) = System.Decimal.ToDouble(velocityparams{km}.Acceleration); %#ok<AGROW> % update acceleration parameter
+                    end
+            end
+        end
+
+        % =================================================================
+        function set.maxvelocity(h, val)
+            switch(h.prefix)
+                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
+                    % check physical limits
+                    if val > h.vellimit
+                        error('Requested acceleration is higher than the physical limit, which is %.2f',h.vellimit);
+                    end
+                    velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
+                    velpars.MaxVelocity = val;
+                    h.deviceNET.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
+                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                    for km = 1:double(h.deviceInfoNET.NumChannels)
+                        % check physical limits
+                        if val(km) > h.vellimit(km)
+                            error('Requested velocity is higher than the physical limit for Ch%d, which is %.2f',km,h.vellimit(km));
+                        end
+                        velpars = h.channel{km}.GetVelocityParams(); % Get existing velocity and acceleration parameters
+                        velpars.MaxVelocity = val(km);
+                        h.channel{km}.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
+                    end
+            end
+        end
+
+        % =================================================================
+        function val = get.maxvelocity(h)
+            switch(h.prefix)
+                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
+                    velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
+                    val = System.Decimal.ToDouble(velpars.MaxVelocity);
+                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                    for km = 1:double(h.deviceInfoNET.NumChannels)
+                        velocityparams{km} = h.channel{km}.GetVelocityParams();             %#ok<AGROW> % update velocity parameter
+                        val(km) = System.Decimal.ToDouble(velocityparams{km}.MaxVelocity); %#ok<AGROW> % update acceleration parameter
+                    end
+            end
+        end
+
+        % =================================================================
+        function set.minvelocity(h, val)
+            switch(h.prefix)
+                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
+                    % check physical limits
+                    if val > h.vellimit
+                        error('Requested velocity is higher than the physical limit, which is %.2f',h.vellimit);
+                    end
+                    velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
+                    velpars.MinVelocity = val;
+                    h.deviceNET.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
+                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                    for km = 1:double(h.deviceInfoNET.NumChannels)
+                        % check physical limits
+                        if val(km) > h.vellimit(km)
+                            error('Requested velocity is higher than the physical limit for Ch%d, which is %.2f',km,h.vellimit(km));
+                        end
+                        velpars = h.channel{km}.GetVelocityParams(); % Get existing velocity and acceleration parameters
+                        velpars.MinVelocity = val(km);
+                        h.channel{km}.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
+                    end
+            end
+        end
+
+        % =================================================================
+        function val = get.minvelocity(h)
+            switch(h.prefix)
+                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
+                    velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
+                    val = System.Decimal.ToDouble(velpars.MinVelocity);
+                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                    for km = 1:double(h.deviceInfoNET.NumChannels)
+                        velocityparams{km} = h.channel{km}.GetVelocityParams();             %#ok<AGROW> % update velocity parameter
+                        val(km) = System.Decimal.ToDouble(velocityparams{km}.MinVelocity); %#ok<AGROW> % update acceleration parameter
+                    end
+            end
+        end
+
+        % =================================================================
+        function set.position(~, ~)
+            error('You cannot set the Position property directly - please use moveto() function or similar!\n');            
+        end
+
+        % =================================================================
+        function val = get.position(h)
+            switch(h.prefix)
+                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
+                    val = System.Decimal.ToDouble(h.deviceNET.Position);        % Read current device position
+                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                    for km = 1:double(h.deviceInfoNET.NumChannels)
+                        val(km) = System.Decimal.ToDouble(h.channel{km}.Position); %#ok<AGROW> % Read current device position
+                    end
+            end
+        end
+
+        % =================================================================
+        function set.isconnected(h, val)
+            if val == 1
+                error('You cannot set the IsConnected property to 1 directly - please use connect(''serialnumber'') function!');            
+            elseif val == 0 && h.isconnected
+                h.disconnect;
+            else
+                error('Unexpected value, could be only set to 0!');            
+            end
+        end
+
+        % =================================================================
+        function val = get.isconnected(h)
+            val = logical(h.deviceNET.IsConnected());
+        end
+
+    end
+
+ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ % M E T H O D S (Sealed) - INTERFACE IMPLEMENTATION
+ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    methods (Sealed)
 
         % =================================================================
         function connect(h,serialNo)  % Connect device
@@ -292,6 +463,9 @@ classdef motor < handle
                         chlist = 1:double(h.deviceInfoNET.NumChannels);
                     end
                     for km = chlist
+                        if ~h.channel{km}.IsEnabled()
+                            error('Channel %d is not enabled! Please enable it first before homing.',km)
+                        end
                         if h.channel{km}.NeedsHoming()
                             workDone{km} = h.channel{km}.InitializeWaitHandler(); %#ok<AGROW> % Initialise Waithandler for timeout
                             h.channel{km}.Home(workDone{km});                     % Home devce via .NET interface
@@ -314,7 +488,6 @@ classdef motor < handle
                         else
                             fprintf(2,'Device does not need homing!\n');
                         end
-
                 case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
                     if nargin == 2
                         chlist = chnum;
@@ -326,7 +499,7 @@ classdef motor < handle
                         if nargin == 2
                             res = chstatus.IsHomed;
                         else
-                            res{km} = chstatus.IsHomed;
+                            res(km) = chstatus.IsHomed;
                         end
                     end
             end
@@ -523,163 +696,12 @@ classdef motor < handle
                     end                    
             end
         end
-            
-        % =================================================================
-        function set.acceleration(h, val)
-            switch(h.prefix)
-                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
-                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
-                    % check physical limits
-                    if val > h.acclimit
-                        error('Requested acceleration is higher than the physical limit, which is %.2f',h.acclimit);
-                    end
-                    velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
-                    velpars.Acceleration = val;
-                    h.deviceNET.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
-                    for km = 1:double(h.deviceInfoNET.NumChannels)
-                        % check physical limits
-                        if val(km) > h.acclimit(km)
-                            error('Requested acceleration is higher than the physical limit for Ch%d, which is %.2f',km,h.acclimit(km));
-                        end
-                        velpars = h.channel{km}.GetVelocityParams(); % Get existing velocity and acceleration parameters
-                        velpars.Acceleration = val(km);
-                        h.channel{km}.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
-                    end
-            end
-        end
 
-        % =================================================================
-        function val = get.acceleration(h)
-            switch(h.prefix)
-                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
-                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
-                    velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
-                    val = System.Decimal.ToDouble(velpars.Acceleration);
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
-                    for km = 1:double(h.deviceInfoNET.NumChannels)
-                        velocityparams{km} = h.channel{km}.GetVelocityParams();             %#ok<AGROW> % update velocity parameter
-                        val(km) = System.Decimal.ToDouble(velocityparams{km}.Acceleration); %#ok<AGROW> % update acceleration parameter
-                    end
-            end
-        end
+    end % methods (Sealed)
 
-        % =================================================================
-        function set.maxvelocity(h, val)
-            switch(h.prefix)
-                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
-                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
-                    % check physical limits
-                    if val > h.vellimit
-                        error('Requested acceleration is higher than the physical limit, which is %.2f',h.vellimit);
-                    end
-                    velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
-                    velpars.MaxVelocity = val;
-                    h.deviceNET.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
-                    for km = 1:double(h.deviceInfoNET.NumChannels)
-                        % check physical limits
-                        if val(km) > h.vellimit(km)
-                            error('Requested velocity is higher than the physical limit for Ch%d, which is %.2f',km,h.vellimit(km));
-                        end
-                        velpars = h.channel{km}.GetVelocityParams(); % Get existing velocity and acceleration parameters
-                        velpars.MaxVelocity = val(km);
-                        h.channel{km}.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
-                    end
-            end
-        end
-
-        % =================================================================
-        function val = get.maxvelocity(h)
-            switch(h.prefix)
-                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
-                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
-                    velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
-                    val = System.Decimal.ToDouble(velpars.MaxVelocity);
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
-                    for km = 1:double(h.deviceInfoNET.NumChannels)
-                        velocityparams{km} = h.channel{km}.GetVelocityParams();             %#ok<AGROW> % update velocity parameter
-                        val(km) = System.Decimal.ToDouble(velocityparams{km}.MaxVelocity); %#ok<AGROW> % update acceleration parameter
-                    end
-            end
-        end
-
-        % =================================================================
-        function set.minvelocity(h, val)
-            switch(h.prefix)
-                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
-                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
-                    % check physical limits
-                    if val > h.vellimit
-                        error('Requested velocity is higher than the physical limit, which is %.2f',h.vellimit);
-                    end
-                    velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
-                    velpars.MinVelocity = val;
-                    h.deviceNET.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
-                    for km = 1:double(h.deviceInfoNET.NumChannels)
-                        % check physical limits
-                        if val(km) > h.vellimit(km)
-                            error('Requested velocity is higher than the physical limit for Ch%d, which is %.2f',km,h.vellimit(km));
-                        end
-                        velpars = h.channel{km}.GetVelocityParams(); % Get existing velocity and acceleration parameters
-                        velpars.MinVelocity = val(km);
-                        h.channel{km}.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
-                    end
-            end
-        end
-
-        % =================================================================
-        function val = get.minvelocity(h)
-            switch(h.prefix)
-                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
-                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
-                    velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
-                    val = System.Decimal.ToDouble(velpars.MinVelocity);
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
-                    for km = 1:double(h.deviceInfoNET.NumChannels)
-                        velocityparams{km} = h.channel{km}.GetVelocityParams();             %#ok<AGROW> % update velocity parameter
-                        val(km) = System.Decimal.ToDouble(velocityparams{km}.MinVelocity); %#ok<AGROW> % update acceleration parameter
-                    end
-            end
-        end
-
-        % =================================================================
-        function set.position(~, ~)
-            error('You cannot set the Position property directly - please use moveto() function or similar!\n');            
-        end
-
-        % =================================================================
-        function val = get.position(h)
-            switch(h.prefix)
-                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
-                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
-                    val = System.Decimal.ToDouble(h.deviceNET.Position);        % Read current device position
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
-                    for km = 1:double(h.deviceInfoNET.NumChannels)
-                        val(km) = System.Decimal.ToDouble(h.channel{km}.Position); %#ok<AGROW> % Read current device position
-                    end
-            end
-        end
-
-        % =================================================================
-        function set.isconnected(h, val)
-            if val == 1
-                error('You cannot set the IsConnected property to 1 directly - please use connect(''serialnumber'') function!');            
-            elseif val == 0 && h.isconnected
-                h.disconnect;
-            else
-                error('Unexpected value, could be only set to 0!');            
-            end
-        end
-
-        % =================================================================
-        function val = get.isconnected(h)
-            val = logical(h.deviceNET.IsConnected());
-        end
-
-    end % methods
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% M E T H O D S  (STATIC) - load DLLs, get a list of devices
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     methods (Static)
 
