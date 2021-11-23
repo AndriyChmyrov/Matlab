@@ -14,8 +14,8 @@ classdef shutter < handle
     % shlist = shutter.listdevices  % List connected devices
     % sh1 = shutter                 % Create a shutter object  
     % sh2 = shutter                 % Create a shutter object  
-    % sh1.connect(shlist{1})        % Connect the first device in the list of devices
-    % sh2.connect(shlist{2})        % Connect the second device in the list of devices
+    % sh1.connect(shlist{1})        % Connect the first shutter object to the first device in the list
+    % sh2.connect('68250440')       % Connect the second shutter object to a device with a serial number 68250440
     % sh1.operatingmode             % Get current operating mode
     % sh1.operatingmode='manual'    % Set operating mode to Manual
     % sh1.operatingstate            % Get current operating state
@@ -262,8 +262,8 @@ classdef shutter < handle
                     inactive_enumIndx = find(arrayfun(@(n) strncmpi(char(states_enum.GetEnumValues.Get(n-1)), inactive_enumName , length(inactive_enumName)), 1:states_enum.GetEnumValues.GetLength(0)));
                     active_enumName = 'Active';
                     active_enumIndx = find(arrayfun(@(n) strncmpi(char(states_enum.GetEnumValues.Get(n-1)), active_enumName, length(active_enumName)), 1:states_enum.GetEnumValues.GetLength(0)));
-                    h.OPSTATE_ACTIVE = states_enum.GetEnumValues().Get(active_enumIndx);
-                    h.OPSTATE_INACTIVE = states_enum.GetEnumValues().Get(inactive_enumIndx);
+                    h.OPSTATE_ACTIVE = states_enum.GetEnumValues().Get(active_enumIndx-1);
+                    h.OPSTATE_INACTIVE = states_enum.GetEnumValues().Get(inactive_enumIndx-1);
                     h.OPSTATE = {h.OPSTATE_INACTIVE, h.OPSTATE_ACTIVE};
 
                     ehOpModes = assemblies.Get(asmidx-1).GetType('Thorlabs.MotionControl.KCube.SolenoidCLI.SolenoidStatus+OperatingModes');
@@ -272,11 +272,10 @@ classdef shutter < handle
                     h.OPMODE_AUTOTOGGLE   = ehOpModes.GetEnumValues().Get(2);
                     h.OPMODE_TRIGGERED    = ehOpModes.GetEnumValues().Get(3);
                     h.OPMODE = {h.OPMODE_MANUAL, h.OPMODE_SINGLETOGGLE, h.OPMODE_AUTOTOGGLE, h.OPMODE_TRIGGERED};
-                catch % Cannot initialise device
+                catch err% Cannot initialise device
                     error(['Unable to initialise device ',char(serialNo)]);
                 end
                 fprintf('Shutter %s with S/N %s is connected successfully!\n',h.controllername,h.serialnumber);
-                updatestatus(h);   % Update status variables from device
             else % Device is already connected
                 error('Device is already connected.')
             end

@@ -1,5 +1,5 @@
 classdef motor < handle 
-    % Matlab class to control Thorlabs motorised translation/rotation stages
+    % Matlab class to control Thorlabs motorized translation/rotation stages
     % It is a 'wrapper' to control Thorlabs devices via the Thorlabs .NET DLLs.
     %
     % Instructions:
@@ -13,9 +13,9 @@ classdef motor < handle
     %
     % Example for K10CR1 rotational stage:
     % mlist=motor.listdevices % List connected devices
-    % mot=motor               % Create a motor object  
+    % mot = motor             % Create a motor object  
     % mot.connect(mlist{1})   % Connect the first devce in the list of devices
-    % mot.home()              % Home the device
+    % mot.home                % Home the device
     % mot.moveto(45)          % Move the device to the 45 degree setting
     % mot.moverel_deviceunit(-100000) % Move 100000 'clicks' backwards
     % mot.disconnect          % Disconnect device
@@ -304,13 +304,12 @@ classdef motor < handle
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
-                    if h.deviceNET.NeedsHoming()
-                        workDone = h.deviceNET.InitializeWaitHandler(); % Initialise Waithandler for timeout
-                        h.deviceNET.Home(workDone);                     % Home devce via .NET interface
-                        h.deviceNET.Wait(h.TIMEOUTMOVE);                % Wait for move to finish
-                    else
-                        fprintf(2,'Device does not need homing!\n');
+                    if ~h.deviceNET.NeedsHoming()
+                        fprintf(2,'Device does not necessarily needs homing!\n');
                     end
+                    workDone = h.deviceNET.InitializeWaitHandler(); % Initialise Waithandler for timeout
+                    h.deviceNET.Home(workDone);                     % Home devce via .NET interface
+                    h.deviceNET.Wait(h.TIMEOUTMOVE);                % Wait for move to finish
                 case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
                     if nargin == 2
                         chlist = chnum;
@@ -321,13 +320,12 @@ classdef motor < handle
                         if ~h.channel{km}.IsEnabled()
                             error('Channel %d is not enabled! Please enable it first before homing.',km)
                         end
-                        if h.channel{km}.NeedsHoming()
-                            workDone{km} = h.channel{km}.InitializeWaitHandler(); %#ok<AGROW> % Initialise Waithandler for timeout
-                            h.channel{km}.Home(workDone{km});                     % Home devce via .NET interface
-                            h.channel{km}.Wait(h.TIMEOUTMOVE);                    % Wait for move to finish
-                        else
-                            fprintf(2,'Device does not need homing!\n');
+                        if ~h.channel{km}.NeedsHoming()
+                            fprintf(2,'Device does not necessarily needs homing!\n');
                         end
+                        workDone{km} = h.channel{km}.InitializeWaitHandler(); %#ok<AGROW> % Initialise Waithandler for timeout
+                        h.channel{km}.Home(workDone{km});                     % Home devce via .NET interface
+                        h.channel{km}.Wait(h.TIMEOUTMOVE);                    % Wait for move to finish
                     end
             end
         end
@@ -337,12 +335,11 @@ classdef motor < handle
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
-                        if h.deviceNET.NeedsHoming()
-                            status = h.deviceNET.Status(); 
-                            res = status.IsHomed;
-                        else
-                            fprintf(2,'Device does not need homing!\n');
+                        if ~h.deviceNET.NeedsHoming()
+                            fprintf(2,'Device does not necessarily needs homing!\n');
                         end
+                        status = h.deviceNET.Status(); 
+                        res = status.IsHomed;
                 case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
                     if nargin == 2
                         chlist = chnum;
