@@ -136,6 +136,9 @@ classdef motor < handle
         function connect(h,serialNo)  % Connect device
             h.listdevices();    % Use this call to build a device list in case not invoked beforehand
             if ~h.initialized
+                if isnumeric(serialNo) && isscalar(serialNo)
+                    serialNo = int2str(serialNo);
+                end
                 h.prefix = int32(str2double(serialNo(1:end-6)));
                 switch(h.prefix)
                     case Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix
