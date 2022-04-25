@@ -49,9 +49,11 @@ classdef shutter < handle
        DEVICEMANAGERDLL = 'Thorlabs.MotionControl.DeviceManagerCLI.dll';
        GENERICMOTORDLL  = 'Thorlabs.MotionControl.GenericMotorCLI.dll';
        SOLENOIDDLL      = 'Thorlabs.MotionControl.KCube.SolenoidCLI.dll';  
+       SOLENOIDDLL2     = 'Thorlabs.MotionControl.TCube.SolenoidCLI.dll';  
        DEVICEMANAGERCLASSNAME = 'Thorlabs.MotionControl.DeviceManagerCLI.DeviceManagerCLI'
        GENERICMOTORCLASSNAME  = 'Thorlabs.MotionControl.GenericMotorCLI.GenericMotorCLI';
        SOLENOIDCLASSNAME      = 'Thorlabs.MotionControl.KCube.SolenoidCLI.KCubeSolenoid';            
+       SOLENOIDCLASSNAME2     = 'Thorlabs.MotionControl.TCube.SolenoidCLI.TCubeSolenoid';            
        
        % Default intitial parameters 
        TPOLLING = 250;          % Default polling time, in ms
@@ -73,6 +75,7 @@ classdef shutter < handle
     properties 
        % These properties are within Matlab wrapper 
        serialnumber;                % Device serial number
+       prefix;                      % Device prefix
        controllername;              % Controller Name
        controllerdescription        % Controller Description
        stagename;                   % Stage Name
@@ -230,9 +233,13 @@ classdef shutter < handle
                 if str2double(serialNo(1:2)) == double(Thorlabs.MotionControl.KCube.SolenoidCLI.KCubeSolenoid.DevicePrefix)
                     % Serial number corresponds to a KSC101 
                     h.deviceNET = Thorlabs.MotionControl.KCube.SolenoidCLI.KCubeSolenoid.CreateKCubeSolenoid(serialNo);
+                elseif str2double(serialNo(1:2)) == double(Thorlabs.MotionControl.TCube.SolenoidCLI.TCubeSolenoid.DevicePrefix)
+                    % Serial number corresponds to a TSC001
+                    h.deviceNET = Thorlabs.MotionControl.TCube.SolenoidCLI.TCubeSolenoid.CreateTCubeSolenoid(serialNo);
+                    disp('T-Cube functionality is not completely implemented. Errors are possible. Check the source code.');
                 else
                     % Serial number is not recognized
-                    error('Thorlabs Shutter and K-Cube not recognised');
+                    error('Thorlabs Shutter and K-Cube/T-Cube not recognised');
                 end     
                 h.deviceNET.Connect(serialNo);          % Connect to device via .NET interface
                 try
@@ -245,19 +252,32 @@ classdef shutter < handle
                     h.deviceNET.StartPolling(h.TPOLLING);   % Start polling via .NET interface
                     h.deviceNET.EnableDevice();             % Enable the channel otherwise any move is ignored 
                     h.serialnumber = char(h.deviceNET.DeviceID);   % update serial number
+                    h.prefix = str2double(h.serialnumber(1:2));    % save device prefix, for distinguishing between KSC101 and TSC001
                     h.shutterSettingsNET = h.deviceNET.GetSolenoidConfiguration(serialNo); % Get shutterSettings via .NET interface
                     h.stagename    = char(h.shutterSettingsNET.DeviceSettingsName);% update stagename
-                    h.currentDeviceSettingsNET = Thorlabs.MotionControl.KCube.SolenoidCLI.ThorlabsKCubeSolenoidSettings.GetSettings(h.shutterSettingsNET);     % Get currentDeviceSettings via .NET interface
+                    if h.prefix == double(Thorlabs.MotionControl.KCube.SolenoidCLI.KCubeSolenoid.DevicePrefix)
+                        h.currentDeviceSettingsNET = Thorlabs.MotionControl.KCube.SolenoidCLI.ThorlabsKCubeSolenoidSettings.GetSettings(h.shutterSettingsNET);     % Get currentDeviceSettings via .NET interface
+                    else
+                        h.currentDeviceSettingsNET = Thorlabs.MotionControl.TCube.SolenoidCLI.ThorlabsTCubeSolenoidSettings.GetSettings(h.shutterSettingsNET);     % Get currentDeviceSettings via .NET interface
+                    end
                     h.deviceInfoNET = h.deviceNET.GetDeviceInfo();                    % Get deviceInfo via .NET interface
                     h.controllername = char(h.deviceInfoNET.Name); % update controleller name          
                     h.controllerdescription = char(h.deviceInfoNET.Description);   % update controller description
 
                     assemblies = System.AppDomain.CurrentDomain.GetAssemblies;
-                    asmname = 'Thorlabs.MotionControl.KCube.SolenoidCLI';
+                    if h.prefix == double(Thorlabs.MotionControl.KCube.SolenoidCLI.KCubeSolenoid.DevicePrefix)
+                        asmname = 'Thorlabs.MotionControl.KCube.SolenoidCLI';
+                    else
+                        asmname = 'Thorlabs.MotionControl.TCube.SolenoidCLI';
+                    end
                     asmidx = find(arrayfun(@(n) strncmpi(char(assemblies.Get(n-1).FullName), asmname, length(asmname)), 1:assemblies.Length));
 
                     % find required enum and its values
-                    states_enum = assemblies.Get(asmidx-1).GetType('Thorlabs.MotionControl.KCube.SolenoidCLI.SolenoidStatus+OperatingStates');
+                    if h.prefix == double(Thorlabs.MotionControl.KCube.SolenoidCLI.KCubeSolenoid.DevicePrefix)
+                        states_enum = assemblies.Get(asmidx-1).GetType('Thorlabs.MotionControl.KCube.SolenoidCLI.SolenoidStatus+OperatingStates');
+                    else
+                        states_enum = assemblies.Get(asmidx-1).GetType('Thorlabs.MotionControl.TCube.SolenoidCLI.SolenoidStatus+OperatingStates');
+                    end
                     inactive_enumName = 'Inactive';
                     inactive_enumIndx = find(arrayfun(@(n) strncmpi(char(states_enum.GetEnumValues.Get(n-1)), inactive_enumName , length(inactive_enumName)), 1:states_enum.GetEnumValues.GetLength(0)));
                     active_enumName = 'Active';
@@ -266,7 +286,11 @@ classdef shutter < handle
                     h.OPSTATE_INACTIVE = states_enum.GetEnumValues().Get(inactive_enumIndx-1);
                     h.OPSTATE = {h.OPSTATE_INACTIVE, h.OPSTATE_ACTIVE};
 
-                    ehOpModes = assemblies.Get(asmidx-1).GetType('Thorlabs.MotionControl.KCube.SolenoidCLI.SolenoidStatus+OperatingModes');
+                    if h.prefix == double(Thorlabs.MotionControl.KCube.SolenoidCLI.KCubeSolenoid.DevicePrefix)
+                        ehOpModes = assemblies.Get(asmidx-1).GetType('Thorlabs.MotionControl.KCube.SolenoidCLI.SolenoidStatus+OperatingModes');
+                    else
+                        ehOpModes = assemblies.Get(asmidx-1).GetType('Thorlabs.MotionControl.TCube.SolenoidCLI.SolenoidStatus+OperatingModes');
+                    end
                     h.OPMODE_MANUAL       = ehOpModes.GetEnumValues().Get(0);
                     h.OPMODE_SINGLETOGGLE = ehOpModes.GetEnumValues().Get(1);
                     h.OPMODE_AUTOTOGGLE   = ehOpModes.GetEnumValues().Get(2);
@@ -334,15 +358,21 @@ classdef shutter < handle
             Thorlabs.MotionControl.DeviceManagerCLI.DeviceManagerCLI.BuildDeviceList();  % Build device list
             serialNumbersNet = Thorlabs.MotionControl.DeviceManagerCLI.DeviceManagerCLI.GetDeviceList(Thorlabs.MotionControl.KCube.SolenoidCLI.KCubeSolenoid.DevicePrefix); % Get device list
             serialNumbers = cell(ToArray(serialNumbersNet)); % Convert serial numbers to cell array
+            serialNumbersNet2 = Thorlabs.MotionControl.DeviceManagerCLI.DeviceManagerCLI.GetDeviceList(Thorlabs.MotionControl.TCube.SolenoidCLI.TCubeSolenoid.DevicePrefix); % Get device list
+            serialNumbers2 = cell(ToArray(serialNumbersNet2)); % Convert serial numbers to cell array
+            if ~isempty(serialNumbers2)
+                serialNumbers = {serialNumbers, serialNumbers2};
+            end
         end
         
         % ====================================================================
         function loaddlls() % Load DLLs
-            if ~exist(shutter.SOLENOIDCLASSNAME,'class')
+            if ~exist(shutter.SOLENOIDCLASSNAME,'class') || ~exist(shutter.SOLENOIDCLASSNAME2,'class')
                 try   % Load in DLLs if not already loaded
                     NET.addAssembly([shutter.KINESISPATHDEFAULT,shutter.DEVICEMANAGERDLL]);
                     NET.addAssembly([shutter.KINESISPATHDEFAULT,shutter.GENERICMOTORDLL]);
                     NET.addAssembly([shutter.KINESISPATHDEFAULT,shutter.SOLENOIDDLL]); 
+                    NET.addAssembly([shutter.KINESISPATHDEFAULT,shutter.SOLENOIDDLL2]); 
                 catch % DLLs did not load
                     error('Unable to load .NET assemblies for Thorlabs Kinesis software')
                 end
