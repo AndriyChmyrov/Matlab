@@ -170,6 +170,9 @@ classdef motor < handle
                                 error(['Unable to initialise device ',char(serialNo)]);
                             end
                             h.deviceNET.StartPolling(h.TPOLLING);   % Start polling via .NET interface
+                            pause(0.1);
+                            h.deviceNET.EnableDevice();
+                            pause(0.1);
                             h.motorSettingsNET = h.deviceNET.LoadMotorConfiguration(serialNo); % Load motorSettings via .NET interface
                             h.stagename = char(h.motorSettingsNET.DeviceSettingsName);    % update stagename
                             h.currentDeviceSettingsNET = h.deviceNET.MotorDeviceSettings;     % Get currentDeviceSettings via .NET interface
