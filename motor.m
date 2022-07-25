@@ -15,9 +15,11 @@ classdef motor < handle
     % mlist=motor.listdevices % List connected devices
     % mot = motor             % Create a motor object  
     % mot.connect(mlist{1})   % Connect the first devce in the list of devices
-    % mot.home                % Home the device
+    % mot.enable()            % Enable the device (if needed)
+    % mot.home()              % Home the device
     % mot.moveto(45)          % Move the device to the 45 degree setting
     % mot.moverel_deviceunit(-100000) % Move 100000 'clicks' backwards
+    % mot.disable()           % Disable the device (if needed)    
     % mot.disconnect          % Disconnect device
     % clear mot               % Clear device object from memory
     %
@@ -170,9 +172,11 @@ classdef motor < handle
                                 error(['Unable to initialise device ',char(serialNo)]);
                             end
                             h.deviceNET.StartPolling(h.TPOLLING);   % Start polling via .NET interface
-                            pause(0.1);
-                            h.deviceNET.EnableDevice();
-                            pause(0.1);
+                            if ~h.deviceNET.IsEnabled % Check if the device is enabled and do so if necessary
+                                pause(0.1);
+                                h.deviceNET.EnableDevice();
+                                pause(0.1);
+                            end
                             h.motorSettingsNET = h.deviceNET.LoadMotorConfiguration(serialNo); % Load motorSettings via .NET interface
                             h.stagename = char(h.motorSettingsNET.DeviceSettingsName);    % update stagename
                             h.currentDeviceSettingsNET = h.deviceNET.MotorDeviceSettings;     % Get currentDeviceSettings via .NET interface
@@ -270,9 +274,16 @@ classdef motor < handle
         end
 
         % =================================================================
-        function enable(h,chnum) % Enable channel (required for BBD30X type devices)
+        function enable(h,chnum) % Enable device or channel
             switch(h.prefix)
+                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
+                    if ~h.deviceNET.IsEnabled
+                        h.deviceNET.EnableDevice();
+                        pause(0.5);
+                    end
                 case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                    % for multi-axes controller we need to enable channels
                     if nargin == 2
                         chlist = chnum;
                     else
@@ -288,8 +299,14 @@ classdef motor < handle
         end
 
         % =================================================================
-        function disable(h,chnum) % Disable channel (can be done for BenchtopBrushlessMotor type devices)
+        function disable(h,chnum) % Disable device or channel
             switch(h.prefix)
+                case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
+                    if h.deviceNET.IsEnabled
+                        h.deviceNET.DisableDevice();
+                        pause(0.1);
+                    end
                 case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
                     if nargin == 2
                         chlist = chnum;
@@ -728,9 +745,18 @@ classdef motor < handle
         function serialNumbers = listdevices()  % Read a list of serial number of connected devices
             motor.loaddlls; % Load DLLs
             Thorlabs.MotionControl.DeviceManagerCLI.DeviceManagerCLI.Initialize;  % not really needed
-            Thorlabs.MotionControl.DeviceManagerCLI.DeviceManagerCLI.BuildDeviceList;  % Build device list
-            serialNumbersNet = Thorlabs.MotionControl.DeviceManagerCLI.DeviceManagerCLI.GetDeviceList; % Get device list
-            serialNumbers    = cell(serialNumbersNet.ToArray); % Convert serial numbers to cell array
+            Thorlabs.MotionControl.DeviceManagerCLI.DeviceManagerCLI.BuildDeviceList();  % Build device list
+
+            % create .NET list of suitable prefixes
+            nPref = NET.createArray('System.Int32',3);
+            nPref(1) = Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix;
+            nPref(2) = Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix;
+            nPref(3) = Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103;
+            netPref = NET.createGeneric('System.Collections.Generic.List',{'System.Int32'},3);
+            netPref.AddRange(nPref);
+
+            serialNumbersNet = Thorlabs.MotionControl.DeviceManagerCLI.DeviceManagerCLI.GetDeviceList(netPref);
+            serialNumbers = cell(serialNumbersNet.ToArray); % Convert serial numbers to cell array
         end
 
         function loaddlls() % Load DLLs
