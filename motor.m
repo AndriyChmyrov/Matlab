@@ -53,7 +53,7 @@ classdef motor < handle
     
     properties (Constant, Hidden)
        % path to DLL files (edit as appropriate)
-       KINESISPATHDEFAULT = 'C:\Program Files\Thorlabs\Kinesis\'
+       KINESISPATHDEFAULT = 'C:\Program Files\Thorlabs\Kinesis\';
 
        % DLL files to be loaded
        DEVICEMANAGERDLL='Thorlabs.MotionControl.DeviceManagerCLI.dll';
