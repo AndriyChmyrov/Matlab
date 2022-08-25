@@ -17,6 +17,7 @@ classdef thorlabswfs < handle
     % wfs.setReferencePlane   % set WFS reference plane to internal
     % wfs.adjustImageBrightness % call autoadjustment routine to set Camera Exposure and Gain
     % wfs.Pupil = [-0.5,-2.0,1.1,1.6] % set the Beam Pupil position [-0.5;-2.0] in mm and Beam Pupil Size [1.1;1.6] in mm
+    % wfs.takeSpotfieldImage  % takes new image
     % wfs.Beam_Centroid       % get 1x4 vector with Beam Centroid position [X, Y] in mm and Beam diameter [X, Y] in mm
     % wfs.Pupil = wfs.Beam_Centroid % update pupil position and size with values of calculated beam centroid 
     % wfs.disconnect          % Disconnect sensor (not strictly necessary - device is disconnected automatically using destructor)
@@ -326,6 +327,11 @@ classdef thorlabswfs < handle
             RetVal = h.deviceNET.AverageImageRolling(int32(val),int32(reset));  
         end
 
+        % =================================================================
+        function takeSpotfieldImage(h)
+        % Takes new image
+            h.deviceNET.TakeSpotfieldImage();
+        end
     end % methods (Sealed)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
