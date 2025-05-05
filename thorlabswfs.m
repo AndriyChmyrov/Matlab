@@ -137,7 +137,7 @@ classdef thorlabswfs < handle
                 [retVal, h.Instrument_Count] = h.deviceNET.GetInstrumentListLen(); %#ok<ASGLU> 
                 if h.Instrument_Count > 1, ending = 's'; else, ending = ''; end
                 fprintf('%d Thorlabs wavefront sensor%s found\n', h.Instrument_Count, ending);
-    
+
                 for kn = 0:h.Instrument_Count-1 % Note: The first instrument has index 0.
                     str1 = System.Text.StringBuilder(Thorlabs.WFS.Interop64.WFS.BufferSize);
                     str2 = System.Text.StringBuilder(Thorlabs.WFS.Interop64.WFS.BufferSize);
