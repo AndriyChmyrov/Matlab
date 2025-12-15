@@ -168,6 +168,7 @@ classdef motor < handle
                 assemblies = System.AppDomain.CurrentDomain.GetAssemblies;
                 asmname = 'Thorlabs.MotionControl.DeviceManagerCLI';
                 asmidx = find(arrayfun(@(n) strncmpi(char(assemblies.Get(n-1).FullName), asmname, length(asmname)), 1:assemblies.Length));
+                settings_enum  = assemblies.Get(asmidx-1).GetType('Thorlabs.MotionControl.DeviceManagerCLI.DeviceConfiguration+DeviceSettingsUseOptionType');
                 switch(h.prefix)
                     case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
                             Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
@@ -186,7 +187,6 @@ classdef motor < handle
                                 pause(0.1);
                             end
 
-                            settings_enum  = assemblies.Get(asmidx-1).GetType('Thorlabs.MotionControl.DeviceManagerCLI.DeviceConfiguration+DeviceSettingsUseOptionType');
                             settings_enumName = 'UseDeviceSettings';
                             settings_enumIndx = find(arrayfun(@(n) strncmpi(char(settings_enum.GetEnumValues.Get(n-1)), settings_enumName, length(settings_enumName)), 1:settings_enum.GetEnumValues.GetLength(0)));
                             h.motorSettingsNET = h.deviceNET.LoadMotorConfiguration(serialNo,settings_enum.GetEnumValues.Get(settings_enumIndx-1)); % Load motorSettings via .NET interface
@@ -206,7 +206,6 @@ classdef motor < handle
                         asmname = 'Thorlabs.MotionControl.DeviceManagerCLI';
                         asmidx = find(arrayfun(@(n) strncmpi(char(assemblies.Get(n-1).FullName), asmname, length(asmname)), 1:assemblies.Length));
                         % find required enum and its value with a name 'UseDeviceSettings'
-                        settings_enum  = assemblies.Get(asmidx-1).GetType('Thorlabs.MotionControl.DeviceManagerCLI.DeviceConfiguration+DeviceSettingsUseOptionType');
                         settings_enumName = 'UseDeviceSettings';
                         settings_enumIndx = find(arrayfun(@(n) strncmpi(char(settings_enum.GetEnumValues.Get(n-1)), settings_enumName, length(settings_enumName)), 1:settings_enum.GetEnumValues.GetLength(0)));
                         % Initialize and return the Motherboard Configuration
