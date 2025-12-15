@@ -65,7 +65,9 @@ classdef motor < handle
        INTEGSTEPDLL='Thorlabs.MotionControl.IntegratedStepperMotorsCLI.dll' 
        INTEGSTEPCLASSNAME='Thorlabs.MotionControl.IntegratedStepperMotorsCLI.IntegratedStepperMotor.CageRotator';
        BRUSHLESSDLL='Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.dll';
-       BRUSHLESSCLASSNAME='Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI ';
+       BRUSHLESSCLASSNAME='Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI';
+       STEPPERDLL='Thorlabs.MotionControl.Benchtop.StepperMotorCLI.dll';
+       STEPPERCLASSNAME='Thorlabs.MotionControl.Benchtop.StepperMotorCLI';
 
        % Default intitial parameters 
        DEFAULTVEL=10;           % Default velocity
@@ -152,6 +154,9 @@ classdef motor < handle
                     case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
                         % 103 - Serial number corresponds to BBD30X type devices 
                         h.deviceNET = Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.CreateBenchtopBrushlessMotor(serialNo);
+                    case Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40
+                        % 40 - Serial number corresponds to BSC20X type devices 
+                        h.deviceNET = Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.CreateBenchtopStepperMotor(serialNo);
                     otherwise % Serial number is not a PRM1Z8 or a K10CR1
                         error('Stage not recognised');
                 end
@@ -160,6 +165,9 @@ classdef motor < handle
                 catch exception %#ok<NASGU> 
                 end
                 h.deviceNET.Connect(serialNo);          % Connect to device via .NET interface
+                assemblies = System.AppDomain.CurrentDomain.GetAssemblies;
+                asmname = 'Thorlabs.MotionControl.DeviceManagerCLI';
+                asmidx = find(arrayfun(@(n) strncmpi(char(assemblies.Get(n-1).FullName), asmname, length(asmname)), 1:assemblies.Length));
                 switch(h.prefix)
                     case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
                             Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
@@ -177,7 +185,12 @@ classdef motor < handle
                                 h.deviceNET.EnableDevice();
                                 pause(0.1);
                             end
-                            h.motorSettingsNET = h.deviceNET.LoadMotorConfiguration(serialNo); % Load motorSettings via .NET interface
+
+                            settings_enum  = assemblies.Get(asmidx-1).GetType('Thorlabs.MotionControl.DeviceManagerCLI.DeviceConfiguration+DeviceSettingsUseOptionType');
+                            settings_enumName = 'UseDeviceSettings';
+                            settings_enumIndx = find(arrayfun(@(n) strncmpi(char(settings_enum.GetEnumValues.Get(n-1)), settings_enumName, length(settings_enumName)), 1:settings_enum.GetEnumValues.GetLength(0)));
+                            h.motorSettingsNET = h.deviceNET.LoadMotorConfiguration(serialNo,settings_enum.GetEnumValues.Get(settings_enumIndx-1)); % Load motorSettings via .NET interface
+
                             h.stagename = char(h.motorSettingsNET.DeviceSettingsName);    % update stagename
                             h.currentDeviceSettingsNET = h.deviceNET.MotorDeviceSettings;     % Get currentDeviceSettings via .NET interface
                             h.acclimit = System.Decimal.ToDouble(h.currentDeviceSettingsNET.Physical.MaxAccnUnit);
@@ -218,6 +231,52 @@ classdef motor < handle
                             h.acclimit(km) = System.Decimal.ToDouble(h.currentDeviceSettingsNET{km}.Physical.MaxAccnUnit);
                             h.vellimit(km) = System.Decimal.ToDouble(h.currentDeviceSettingsNET{km}.Physical.MaxVelUnit);
                         end
+                    case Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40
+                        try
+                            h.deviceInfoNET = h.deviceNET.GetDeviceInfo();                    % Get deviceInfo via .NET interface
+                            for km = 1:double(h.deviceInfoNET.NumChannels)
+                                h.channel{km} = h.deviceNET.GetChannel(km);
+                                try
+                                    % h.channel{km}.Connect(serialNo);
+                                    if(~h.channel{km}.IsSettingsInitialized)
+                                        h.channel{km}.WaitForSettingsInitialized(3000);
+                                    end
+                                catch Exception %#ok<NASGU> 
+                                        disp("Settings failed to initialize");
+                                end
+                                h.motorSettingsNET{km} = h.channel{km}.LoadMotorConfiguration(h.channel{km}.DeviceID); % Load motorSettings via .NET interface
+                                h.channel{km}.StartPolling(h.TPOLLING);   % Start polling via .NET interface
+                                pause(0.25);
+                                h.channel{km}.EnableDevice();
+                                h.stagename{km} = char(h.motorSettingsNET{km}.DeviceSettingsName);    % update stagename
+                                h.currentDeviceSettingsNET{km} = h.channel{km}.MotorDeviceSettings();     % Get currentDeviceSettings via .NET interface
+                                h.acclimit(km) = System.Decimal.ToDouble(h.currentDeviceSettingsNET{km}.Physical.MaxAccnUnit);
+                                h.vellimit(km) = System.Decimal.ToDouble(h.currentDeviceSettingsNET{km}.Physical.MaxVelUnit);
+                            end
+                            % h.deviceInfoNET = h.deviceNET.GetDeviceInfo();                    % Get deviceInfo via .NET interface
+                            % if ~h.deviceNET.IsSettingsInitialized % Wait for IsSettingsInitialized via .NET interface
+                            %     h.deviceNET.WaitForSettingsInitialized(h.TIMEOUTSETTINGS);
+                            % end
+                            % if ~h.deviceNET.IsSettingsInitialized % Cannot initialise device
+                            %     error(['Unable to initialise device ',char(serialNo)]);
+                            % end
+                            % h.deviceNET.StartPolling(h.TPOLLING);   % Start polling via .NET interface
+                            % if ~h.deviceNET.IsEnabled % Check if the device is enabled and do so if necessary
+                            %     pause(0.1);
+                            %     h.deviceNET.EnableDevice();
+                            %     pause(0.1);
+                            % end
+                            % h.motorSettingsNET = h.deviceNET.LoadMotorConfiguration(serialNo); % Load motorSettings via .NET interface
+                            % h.stagename = char(h.motorSettingsNET.DeviceSettingsName);    % update stagename
+                            % h.currentDeviceSettingsNET = h.deviceNET.MotorDeviceSettings;     % Get currentDeviceSettings via .NET interface
+                            % h.acclimit = System.Decimal.ToDouble(h.currentDeviceSettingsNET.Physical.MaxAccnUnit);
+                            % h.vellimit = System.Decimal.ToDouble(h.currentDeviceSettingsNET.Physical.MaxVelUnit);
+                            % %MotDir=Thorlabs.MotionControl.GenericMotorCLI.Settings.RotationDirections.Forwards; % MotDir is enumeration for 'forwards'
+                            % %h.currentDeviceSettingsNET.Rotation.RotationDirection=MotDir;   % Set motor direction to be 'forwards#
+                        catch % Cannot initialise device
+                            error(['Unable to initialise device ',char(serialNo)]);
+                        end
+
                 end
             else % Device is already connected
                 error('Device is already connected.')
@@ -244,6 +303,13 @@ classdef motor < handle
                                 h.channel{km}.StopPolling();
                             end
                             h.deviceNET.ShutDown; % applies to all Benchtop devices
+                        case Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40
+                            % Serial number corresponds to BSC20X type devices 
+                            for km = 1:double(h.deviceInfoNET.NumChannels)
+                                h.channel{km}.StopPolling();
+                            end
+                            h.deviceNET.Disconnect();   % Disconnect device via .NET interface
+                            h.deviceNET.ShutDown; % applies to all Benchtop devices
                     end
                 catch Exception
                     error(['Unable to disconnect device',h.serialnumber]);
@@ -265,7 +331,8 @@ classdef motor < handle
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     h.deviceNET.ClearDeviceExceptions();  % Clear exceptions vua .NET interface
                     h.deviceNET.ResetConnection(serialNo) % Reset connection via .NET interface
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     for km = 1:double(h.deviceInfoNET.NumChannels)
                         h.channel{km}.ClearDeviceExceptions();  % Clear exceptions vua .NET interface
                         h.channel{km}.ResetConnection(serialNo) % Reset connection via .NET interface
@@ -282,7 +349,8 @@ classdef motor < handle
                         h.deviceNET.EnableDevice();
                         pause(0.5);
                     end
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     % for multi-axes controller we need to enable channels
                     if nargin == 2
                         chlist = chnum;
@@ -307,7 +375,8 @@ classdef motor < handle
                         h.deviceNET.DisableDevice();
                         pause(0.1);
                     end
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     if nargin == 2
                         chlist = chnum;
                     else
@@ -333,7 +402,8 @@ classdef motor < handle
                     workDone = h.deviceNET.InitializeWaitHandler(); % Initialise Waithandler for timeout
                     h.deviceNET.Home(workDone);                     % Home devce via .NET interface
                     h.deviceNET.Wait(h.TIMEOUTMOVE);                % Wait for move to finish
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     if nargin == 2
                         chlist = chnum;
                     else
@@ -363,7 +433,8 @@ classdef motor < handle
                         end
                         status = h.deviceNET.Status(); 
                         res = status.IsHomed;
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     if nargin == 2
                         chlist = chnum;
                     else
@@ -392,7 +463,8 @@ classdef motor < handle
                     catch % Device faile to move
                         error(['Unable to Move device ',h.serialnumber,' to ',num2str(position)]);
                     end
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     if length(position) ~= h.deviceInfoNET.NumChannels
                         error([int2str(h.deviceInfoNET.NumChannels) ' coordinates expected for the device ',h.controllername,' with serial number ',h.serialnumber,'!']);
                     end
@@ -423,7 +495,8 @@ classdef motor < handle
                     end             
                     % Perform relative device move via .NET interface
                     h.deviceNET.MoveRelative_DeviceUnit(motordirection,noclicks,h.TIMEOUTMOVE);
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     if length(noclicks) ~= h.deviceInfoNET.NumChannels
                         error([int2str(h.deviceInfoNET.NumChannels) ' clicks expected for the device ',h.controllername,' with serial number ',h.serialnumber,'!']);
                     end
@@ -473,7 +546,8 @@ classdef motor < handle
         function stop(h,chnum) % Stop the motor moving (needed if set motor to continous)
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
-                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
+                      Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix,...
+                      }
                     h.deviceNET.Stop(h.TIMEOUTMOVE); % Stop motor movement via.NET interface
                 case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
                     if nargin == 2
@@ -510,7 +584,8 @@ classdef motor < handle
                         warning('Acceleration >25 deg/sec2 outside specification')
                     end
                     h.deviceNET.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     for km = 1:double(h.deviceInfoNET.NumChannels)
                         velpars = h.channel{km}.GetVelocityParams(); % Get existing velocity and acceleration parameters
                         switch(nargin)
@@ -540,7 +615,8 @@ classdef motor < handle
         % =================================================================
         function res = getstatus(h,chnum)
             switch(h.prefix)
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     if nargin == 2
                         chlist = chnum;
                     else
@@ -560,7 +636,8 @@ classdef motor < handle
         % =================================================================
         function cleardeviceexceptions(h,chnum)
             switch(h.prefix)
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     if nargin == 2
                         chlist = chnum;
                     else
@@ -592,7 +669,8 @@ classdef motor < handle
                     velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
                     velpars.Acceleration = val;
                     h.deviceNET.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     for km = 1:double(h.deviceInfoNET.NumChannels)
                         % check physical limits
                         if val(km) > h.acclimit(km)
@@ -612,7 +690,8 @@ classdef motor < handle
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
                     val = System.Decimal.ToDouble(velpars.Acceleration);
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     for km = 1:double(h.deviceInfoNET.NumChannels)
                         velocityparams{km} = h.channel{km}.GetVelocityParams();             %#ok<AGROW> % update velocity parameter
                         val(km) = System.Decimal.ToDouble(velocityparams{km}.Acceleration); %#ok<AGROW> % update acceleration parameter
@@ -632,7 +711,8 @@ classdef motor < handle
                     velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
                     velpars.MaxVelocity = val;
                     h.deviceNET.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     for km = 1:double(h.deviceInfoNET.NumChannels)
                         % check physical limits
                         if val(km) > h.vellimit(km)
@@ -652,7 +732,8 @@ classdef motor < handle
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
                     val = System.Decimal.ToDouble(velpars.MaxVelocity);
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     for km = 1:double(h.deviceInfoNET.NumChannels)
                         velocityparams{km} = h.channel{km}.GetVelocityParams();             %#ok<AGROW> % update velocity parameter
                         val(km) = System.Decimal.ToDouble(velocityparams{km}.MaxVelocity); %#ok<AGROW> % update acceleration parameter
@@ -672,7 +753,8 @@ classdef motor < handle
                     velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
                     velpars.MinVelocity = val;
                     h.deviceNET.SetVelocityParams(velpars); % Set velocity and acceleration paraneters via .NET interface
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     for km = 1:double(h.deviceInfoNET.NumChannels)
                         % check physical limits
                         if val(km) > h.vellimit(km)
@@ -692,7 +774,8 @@ classdef motor < handle
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
                     val = System.Decimal.ToDouble(velpars.MinVelocity);
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     for km = 1:double(h.deviceInfoNET.NumChannels)
                         velocityparams{km} = h.channel{km}.GetVelocityParams();             %#ok<AGROW> % update velocity parameter
                         val(km) = System.Decimal.ToDouble(velocityparams{km}.MinVelocity); %#ok<AGROW> % update acceleration parameter
@@ -711,7 +794,8 @@ classdef motor < handle
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     val = System.Decimal.ToDouble(h.deviceNET.Position);        % Read current device position
-                case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
+                case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
+                      Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40}
                     for km = 1:double(h.deviceInfoNET.NumChannels)
                         val(km) = System.Decimal.ToDouble(h.channel{km}.Position); %#ok<AGROW> % Read current device position
                     end
@@ -748,10 +832,11 @@ classdef motor < handle
             Thorlabs.MotionControl.DeviceManagerCLI.DeviceManagerCLI.BuildDeviceList();  % Build device list
 
             % create .NET list of suitable prefixes
-            nPref = NET.createArray('System.Int32',3);
+            nPref = NET.createArray('System.Int32',4);
             nPref(1) = Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix;
             nPref(2) = Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix;
             nPref(3) = Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103;
+            nPref(4) = Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40;
             netPref = NET.createGeneric('System.Collections.Generic.List',{'System.Int32'},3);
             netPref.AddRange(nPref);
 
@@ -767,6 +852,7 @@ classdef motor < handle
                     NET.addAssembly([motor.KINESISPATHDEFAULT,motor.DCSERVODLL]); 
                     NET.addAssembly([motor.KINESISPATHDEFAULT,motor.INTEGSTEPDLL]); 
                     NET.addAssembly([motor.KINESISPATHDEFAULT,motor.BRUSHLESSDLL]);                     
+                    NET.addAssembly([motor.KINESISPATHDEFAULT,motor.STEPPERDLL]);
                 catch % DLLs did not load
                     error('Unable to load .NET assemblies')
                 end
