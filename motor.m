@@ -68,6 +68,8 @@ classdef motor < handle
        BRUSHLESSCLASSNAME='Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI';
        STEPPERDLL='Thorlabs.MotionControl.Benchtop.StepperMotorCLI.dll';
        STEPPERCLASSNAME='Thorlabs.MotionControl.Benchtop.StepperMotorCLI';
+       KCUBEBRUSHLESSDLL='Thorlabs.MotionControl.KCube.BrushlessMotorCLI.dll';
+       KCUBEBRUSHLESSCLASSNAME='Thorlabs.MotionControl.KCube.BrushlessMotorCLI';
 
        % Default intitial parameters 
        DEFAULTVEL=10;           % Default velocity
@@ -148,6 +150,9 @@ classdef motor < handle
                     case Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix
                         % 27 - Serial number corresponds to a PRM1Z8
                         h.deviceNET = Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.CreateKCubeDCServo(serialNo);   
+                    case Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix
+                        % 28 - Serial number corresponds to a KBD101 K-Cube Brushless DC Servo Driver
+                        h.deviceNET = Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.CreateKCubeBrushlessMotor(serialNo);   
                     case Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix   
                         % 55 - Serial number corresponds to a K10CR1 
                         h.deviceNET = Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.CreateCageRotator(serialNo);
@@ -171,6 +176,7 @@ classdef motor < handle
                 settings_enum  = assemblies.Get(asmidx-1).GetType('Thorlabs.MotionControl.DeviceManagerCLI.DeviceConfiguration+DeviceSettingsUseOptionType');
                 switch(h.prefix)
                     case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                            Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                             Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                         try
                             h.deviceInfoNET = h.deviceNET.GetDeviceInfo();                    % Get deviceInfo via .NET interface
@@ -187,9 +193,15 @@ classdef motor < handle
                                 pause(0.1);
                             end
 
-                            settings_enumName = 'UseDeviceSettings';
-                            settings_enumIndx = find(arrayfun(@(n) strncmpi(char(settings_enum.GetEnumValues.Get(n-1)), settings_enumName, length(settings_enumName)), 1:settings_enum.GetEnumValues.GetLength(0)));
-                            h.motorSettingsNET = h.deviceNET.LoadMotorConfiguration(serialNo,settings_enum.GetEnumValues.Get(settings_enumIndx-1)); % Load motorSettings via .NET interface
+                            switch(h.prefix)
+                                case Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix
+                                    settings_enumName = 'UseDeviceSettings';
+                                    settings_enumIndx = find(arrayfun(@(n) strncmpi(char(settings_enum.GetEnumValues.Get(n-1)), settings_enumName, length(settings_enumName)), 1:settings_enum.GetEnumValues.GetLength(0)));
+                                    h.motorSettingsNET = h.deviceNET.LoadMotorConfiguration(serialNo,settings_enum.GetEnumValues.Get(settings_enumIndx-1)); % Load motorSettings via .NET interface
+                                case {Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix,...
+                                        Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix}
+                                    h.motorSettingsNET = h.deviceNET.LoadMotorConfiguration(serialNo); % Load motorSettings via .NET interface
+                            end
 
                             h.stagename = char(h.motorSettingsNET.DeviceSettingsName);    % update stagename
                             h.currentDeviceSettingsNET = h.deviceNET.MotorDeviceSettings;     % Get currentDeviceSettings via .NET interface
@@ -201,10 +213,6 @@ classdef motor < handle
                             error(['Unable to initialise device ',char(serialNo)]);
                         end
                     case Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103
-                        % find a handle to already loaded .NET assembly with a name Thorlabs.MotionControl.DeviceManagerCLI
-                        assemblies = System.AppDomain.CurrentDomain.GetAssemblies;
-                        asmname = 'Thorlabs.MotionControl.DeviceManagerCLI';
-                        asmidx = find(arrayfun(@(n) strncmpi(char(assemblies.Get(n-1).FullName), asmname, length(asmname)), 1:assemblies.Length));
                         % find required enum and its value with a name 'UseDeviceSettings'
                         settings_enumName = 'UseDeviceSettings';
                         settings_enumIndx = find(arrayfun(@(n) strncmpi(char(settings_enum.GetEnumValues.Get(n-1)), settings_enumName, length(settings_enumName)), 1:settings_enum.GetEnumValues.GetLength(0)));
@@ -293,6 +301,7 @@ classdef motor < handle
                 try
                     switch(h.prefix)
                         case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                              Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                               Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                             h.deviceNET.StopPolling();  % Stop polling device via .NET interface
                             h.deviceNET.Disconnect();   % Disconnect device via .NET interface
@@ -327,6 +336,7 @@ classdef motor < handle
             end
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     h.deviceNET.ClearDeviceExceptions();  % Clear exceptions vua .NET interface
                     h.deviceNET.ResetConnection(serialNo) % Reset connection via .NET interface
@@ -343,6 +353,7 @@ classdef motor < handle
         function enable(h,chnum) % Enable device or channel
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     if ~h.deviceNET.IsEnabled
                         h.deviceNET.EnableDevice();
@@ -369,6 +380,7 @@ classdef motor < handle
         function disable(h,chnum) % Disable device or channel
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     if h.deviceNET.IsEnabled
                         h.deviceNET.DisableDevice();
@@ -394,6 +406,7 @@ classdef motor < handle
         function home(h,chnum) % Home device (must be done before any device move)
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     if ~h.deviceNET.NeedsHoming()
                         fprintf(2,'Device does not necessarily needs homing!\n');
@@ -426,6 +439,7 @@ classdef motor < handle
         function res = ishomed(h,chnum) % Check if the device or the channel is homed
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                         if ~h.deviceNET.NeedsHoming()
                             fprintf(2,'Device does not necessarily needs homing!\n');
@@ -454,6 +468,7 @@ classdef motor < handle
         function moveto(h,position)     % Move to absolute position
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     try
                         workDone=h.deviceNET.InitializeWaitHandler(); % Initialise Waithandler for timeout
@@ -483,6 +498,7 @@ classdef motor < handle
         function moverel_deviceunit(h, noclicks)  % Move relative by a number of device clicks (noclicks)
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     if noclicks < 0   
                         % if noclicks is negative, move device in backwards direction
@@ -517,6 +533,7 @@ classdef motor < handle
         function movecont(h, varargin)  % Set motor to move continuously
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     if (nargin>1) && (varargin{1})      % if parameter given (e.g. 1) move backwards
                         motordirection = Thorlabs.MotionControl.GenericMotorCLI.MotorDirection.Backward;
@@ -545,6 +562,7 @@ classdef motor < handle
         function stop(h,chnum) % Stop the motor moving (needed if set motor to continous)
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix,...
                       }
                     h.deviceNET.Stop(h.TIMEOUTMOVE); % Stop motor movement via.NET interface
@@ -564,6 +582,7 @@ classdef motor < handle
         function setvelocity(h, varargin)  % Set velocity and acceleration parameters
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
                     switch(nargin)
@@ -660,6 +679,7 @@ classdef motor < handle
         function set.acceleration(h, val)
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     % check physical limits
                     if val > h.acclimit
@@ -686,6 +706,7 @@ classdef motor < handle
         function val = get.acceleration(h)
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
                     val = System.Decimal.ToDouble(velpars.Acceleration);
@@ -702,6 +723,7 @@ classdef motor < handle
         function set.maxvelocity(h, val)
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     % check physical limits
                     if val > h.vellimit
@@ -728,6 +750,7 @@ classdef motor < handle
         function val = get.maxvelocity(h)
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
                     val = System.Decimal.ToDouble(velpars.MaxVelocity);
@@ -744,6 +767,7 @@ classdef motor < handle
         function set.minvelocity(h, val)
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     % check physical limits
                     if val > h.vellimit
@@ -770,6 +794,7 @@ classdef motor < handle
         function val = get.minvelocity(h)
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     velpars = h.deviceNET.GetVelocityParams(); % Get existing velocity and acceleration parameters
                     val = System.Decimal.ToDouble(velpars.MinVelocity);
@@ -791,6 +816,7 @@ classdef motor < handle
         function val = get.position(h)
             switch(h.prefix)
                 case {Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix,...
+                      Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix,...
                       Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix}
                     val = System.Decimal.ToDouble(h.deviceNET.Position);        % Read current device position
                 case {Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103,...
@@ -831,11 +857,12 @@ classdef motor < handle
             Thorlabs.MotionControl.DeviceManagerCLI.DeviceManagerCLI.BuildDeviceList();  % Build device list
 
             % create .NET list of suitable prefixes
-            nPref = NET.createArray('System.Int32',4);
-            nPref(1) = Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix;
-            nPref(2) = Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix;
-            nPref(3) = Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103;
-            nPref(4) = Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40;
+            nPref = NET.createArray('System.Int32',5);
+            nPref(1) = Thorlabs.MotionControl.IntegratedStepperMotorsCLI.CageRotator.DevicePrefix;
+            nPref(2) = Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo.DevicePrefix;
+            nPref(3) = Thorlabs.MotionControl.KCube.BrushlessMotorCLI.KCubeBrushlessMotor.DevicePrefix;
+            nPref(4) = Thorlabs.MotionControl.Benchtop.BrushlessMotorCLI.BenchtopBrushlessMotor.DevicePrefix103;
+            nPref(5) = Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix40;
             netPref = NET.createGeneric('System.Collections.Generic.List',{'System.Int32'},3);
             netPref.AddRange(nPref);
 
@@ -851,6 +878,7 @@ classdef motor < handle
                     NET.addAssembly([motor.KINESISPATHDEFAULT,motor.DCSERVODLL]); 
                     NET.addAssembly([motor.KINESISPATHDEFAULT,motor.INTEGSTEPDLL]); 
                     NET.addAssembly([motor.KINESISPATHDEFAULT,motor.BRUSHLESSDLL]);                     
+                    NET.addAssembly([motor.KINESISPATHDEFAULT,motor.KCUBEBRUSHLESSDLL]);                     
                     NET.addAssembly([motor.KINESISPATHDEFAULT,motor.STEPPERDLL]);
                 catch % DLLs did not load
                     error('Unable to load .NET assemblies')
