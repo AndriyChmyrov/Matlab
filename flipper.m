@@ -230,7 +230,7 @@ classdef flipper < handle
         
         % ====================================================================
         function serialNumbers = listdevices()  % Read a list of serial number of connected devices
-            shutter.loaddlls; % Load DLLs
+            flipper.loaddlls; % Load DLLs
             Thorlabs.MotionControl.DeviceManagerCLI.DeviceManagerCLI.BuildDeviceList();  % Build device list
             serialNumbersNet = Thorlabs.MotionControl.DeviceManagerCLI.DeviceManagerCLI.GetDeviceList(Thorlabs.MotionControl.FilterFlipperCLI.FilterFlipper.DevicePrefix); % Get device list
             serialNumbers = cell(ToArray(serialNumbersNet)); % Convert serial numbers to cell array
